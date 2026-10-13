@@ -12,7 +12,7 @@ export default function Login() {
   }
   return (
     <main style={{ maxWidth: 360, margin: "15vh auto", padding: 16, fontFamily: "system-ui" }}>
-      <img src="/apex-logo.svg" alt="Apex Alliance" style={{ height: 48, marginBottom: 12 }} />
+      <img src="/apex-logo.svg" alt="Apex Alliance" style={{ height: 52, background: "#fff", borderRadius: 8, padding: "4px 12px", marginBottom: 16 }} />
       <h1 style={{ fontSize: 20 }}>Utilities dashboard</h1>
       <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
         <input type="password" name="password" placeholder="Password" autoFocus required style={{ padding: 8 }} />
