@@ -96,3 +96,14 @@ tr.click:hover td { background: var(--bg); }
 .login-card button:disabled { opacity: .7; cursor: default; }
 .login-err { background: var(--alert-bg); color: var(--alert-fg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
 .login-foot { color: var(--text-3); font-size: 11px; text-align: center; margin-top: 4px; }
+
+.drop { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 22px 12px; border: 2px dashed var(--line); border-radius: 10px; cursor: pointer; background: var(--bg); color: var(--text-2); }
+.drop:hover, .drop.on { border-color: var(--brand); background: var(--ok-bg); }
+.drop.has { border-style: solid; border-color: var(--brand); }
+.drop b { color: var(--text); word-break: break-all; }
+.drop span { font-size: 12px; color: var(--text-3); }
+.drop-ico { font-size: 26px; }
+.ok-box { background: var(--ok-bg); color: var(--ok-fg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.warn-box { background: var(--warn-bg); color: var(--warn-fg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.back { color: var(--text-2); font-size: 13px; text-decoration: none; text-align: center; }
+.back:hover { color: var(--text); text-decoration: underline; }
