@@ -47,3 +47,6 @@ npm install
 npm run dev      # http://localhost:3000
 npm test         # unit tests (node:test)
 ```
+
+## End-to-end check
+`BASE_URL=https://… DASH_PASSWORD=… UPLOAD_PASSWORD=… npm run e2e -- path/to/original.xlsx` logs in, uploads an updated file (new month + a correction), checks that `/api/data` shows both, checks that a broken file and a wrong password are refused, and restores the original file.

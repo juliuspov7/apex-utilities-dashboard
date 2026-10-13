@@ -80,11 +80,16 @@ export async function getPrices(months: string[], needed: boolean, force: boolea
         try {
           const { start, end } = monthBounds(m);
           const d = await elering(start.toISOString(), end.toISOString());
+          // merge into what we already have: a partial answer must never erase a stored area price
           const entry: MonthPrice = {
+            ...cache.months[m],
             fetchedAt: new Date().toISOString(),
             complete: end.getTime() < nowMs,
           };
-          for (const a of AREAS) entry[a] = avg(d[a]);
+          for (const a of AREAS) {
+            const v = avg(d[a]);
+            if (v !== undefined) entry[a] = v;
+          }
           if (AREAS.every((a) => entry[a] === undefined)) throw new Error(`no prices returned for ${m}`);
           cache.months[m] = entry;
           changed = true;

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test tests/model.test.ts"
+    "test": "node --test tests/model.test.ts",
+    "e2e": "node tests/e2e.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.1",
