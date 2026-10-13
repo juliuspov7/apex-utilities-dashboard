@@ -11,14 +11,17 @@ export async function GET(req: Request) {
   if (!secret || a.length !== b.length || !timingSafeEqual(a, b)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const d = await loadDataset(true);
+    // surface degraded states so the scheduled GitHub run turns red instead of silently "succeeding"
+    const degraded = d.meta.priceStatus === "unavailable" || d.meta.priceStatus === "cached" || d.meta.source !== "upload";
     return Response.json({
-      ok: true,
+      ok: !degraded,
+      priceMessage: d.meta.priceMessage,
       refreshedAt: d.meta.generatedAt,
       priceStatus: d.meta.priceStatus,
       source: d.meta.source,
       sourceError: d.meta.sourceError,
       rows: d.rows.length,
-    });
+    }, { status: degraded ? 503 : 200 });
   } catch (e) {
     return Response.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
