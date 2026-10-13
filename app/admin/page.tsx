@@ -59,13 +59,13 @@ export default function Admin() {
           <input ref={input} type="file" accept=".xlsx" hidden onChange={(e) => pick(e.target.files?.[0])} />
           {file ? (
             <>
-              <div className="drop-ico">📄</div>
+              
               <b>{file.name}</b>
               <span>{(file.size / 1024).toFixed(0)} KB · click to change</span>
             </>
           ) : (
             <>
-              <div className="drop-ico">⬆</div>
+              
               <b>Drop the .xlsx file here</b>
               <span>or click to browse</span>
             </>
@@ -74,9 +74,9 @@ export default function Admin() {
 
         <input type="password" name="password" placeholder="Upload password" required autoComplete="off" aria-label="Upload password" />
         {msg && <div className={msg.ok ? "ok-box" : "login-err"} role="alert">{msg.text}</div>}
-        {msg?.warn && <div className="warn-box" role="alert">⚠ {msg.warn}</div>}
+        {msg?.warn && <div className="warn-box" role="alert">{msg.warn}</div>}
         <button disabled={busy || !file}>{busy ? "Checking and uploading…" : "Upload"}</button>
-        <a className="back" href="/">← Back to dashboard</a>
+        <a className="back" href="/">Back to dashboard</a>
       </form>
     </main>
   );

@@ -8,7 +8,7 @@ const REFRESH_MS = 5 * 3600 * 1000;
 type Preset = "latest" | "3m" | "ytd" | "12m" | "custom";
 type Tab = "portfolio" | "hotel" | "quality";
 
-const ICON: Record<Level, string> = { alert: "▲", warn: "▲", ok: "✓", none: "" };
+const ICON: Record<Level, string> = { alert: "▲", warn: "▲", ok: "", none: "" };
 
 function ago(iso: string | null, now: number) {
   if (!iso) return "–";
@@ -27,7 +27,7 @@ function Heat({ agg, unit, money }: { agg: ReturnType<typeof aggregate>; unit: s
   const amount = diff === null ? "" : money ? `${signed(diff)} €` : `${signed(diff)} ${unit}`;
   return (
     <span className={`heat ${l}`} title={dev === null ? "No valid data in this period (see Data quality)" : `Actual vs budget ${fmtPct(dev)} (${amount})`}>
-      {dev === null ? "no data" : (<>{`${ICON[l]} ${fmtPct(dev)}`}<span className="heat-sub">{amount}</span></>)}
+      {dev === null ? "no data" : (<>{`${ICON[l]} ${fmtPct(dev)}`.trim()}<span className="heat-sub">{amount}</span></>)}
     </span>
   );
 }
@@ -36,10 +36,9 @@ function Spinner({ small }: { small?: boolean }) {
   return <span className={`spinner${small ? " sm" : ""}`} role="status" aria-label="Loading" />;
 }
 
-function Empty({ icon, title, hint }: { icon: string; title: string; hint?: string }) {
+function Empty({ title, hint }: { icon?: string; title: string; hint?: string }) {
   return (
     <div className="empty">
-      <div className="empty-ico">{icon}</div>
       <b>{title}</b>
       {hint && <span>{hint}</span>}
     </div>
@@ -173,7 +172,7 @@ export default function Dashboard() {
       <>
         <Header onRefresh={() => load(true)} loading={loading} data={null} now={now} lastLoad={lastLoad} />
         {error
-          ? <div className="wrap"><div className="banner alert" style={{ marginTop: 24 }}>Cannot load data: {error}</div><Empty icon="⚠" title="The dashboard could not load" hint="Press “Refresh now” to try again." /></div>
+          ? <div className="wrap"><div className="banner alert" style={{ marginTop: 24 }}>Cannot load data: {error}</div><Empty title="The dashboard could not load" hint="Press “Refresh now” to try again." /></div>
           : <Skeleton />}
       </>
     );
@@ -271,8 +270,8 @@ function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | n
           )}
         </div>
         <div className="sp" />
-        <a className="btn" href="/admin" style={{ textDecoration: "none" }}>⬆ Upload data</a>
-        <button className="btn primary" onClick={onRefresh} disabled={loading}>{loading ? <><Spinner small /> Refreshing…</> : "↻ Refresh now"}</button>
+        <a className="btn" href="/admin" style={{ textDecoration: "none" }}>Upload data</a>
+        <button className="btn primary" onClick={onRefresh} disabled={loading}>{loading ? <><Spinner small /> Refreshing…</> : "Refresh now"}</button>
       </div>
     </header>
   );
@@ -332,7 +331,7 @@ function Portfolio(p: {
   const cost = p.total.cost;
   const costDiff = cost.act !== null && cost.bud !== null ? cost.act - cost.bud : null;
 
-  if (p.perHotel.length === 0) return <Empty icon="🏨" title="No hotels match this filter" hint="Choose another country or period." />;
+  if (p.perHotel.length === 0) return <Empty title="No hotels match this filter" hint="Choose another country or period." />;
 
   return (
     <div className="grid">
@@ -484,7 +483,7 @@ function HotelView(p: {
             </select>
           </label>
         </div>
-        <Empty icon="📭" title={`No report from ${h.id} for this period`} hint="Choose another period or hotel, or ask the hotel to send the missing month." />
+        <Empty title={`No report from ${h.id} for this period`} hint="Choose another period or hotel, or ask the hotel to send the missing month." />
       </div>
     );
   }
@@ -548,7 +547,7 @@ function HotelView(p: {
 const KIND_LABEL = { excluded: "Excluded from KPIs", flagged: "Flagged (used)", info: "Info" } as const;
 
 function IssueTable({ issues }: { issues: Issue[] }) {
-  if (!issues.length) return <Empty icon="✓" title="No data issues" hint="Everything in this selection passed the checks." />;
+  if (!issues.length) return <Empty title="No data issues" hint="Everything in this selection passed the checks." />;
   const sorted = [...issues].sort((a, b) => b.month.localeCompare(a.month) || a.hotel.localeCompare(b.hotel));
   return (
     <div className="scroll">
