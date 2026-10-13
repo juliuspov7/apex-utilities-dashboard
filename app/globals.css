@@ -98,3 +98,29 @@ tr.click:hover td { background: var(--bg); }
 .back:hover { color: var(--text); text-decoration: underline; }
 
 a.btn { color: inherit; text-decoration: none; display: inline-block; }
+
+/* ---- loading, empty states, summary strip, chips */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,0,0,.15); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -3px; }
+.spinner.sm { width: 12px; height: 12px; border-width: 2px; vertical-align: -2px; }
+.btn.primary .spinner { border-color: rgba(255,255,255,.4); border-top-color: #fff; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.skel { background: linear-gradient(90deg, #efebe6 25%, #f7f4f0 37%, #efebe6 63%); background-size: 400% 100%; border-radius: 10px; animation: shimmer 1.4s ease infinite; }
+@keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+.empty { display: grid; justify-items: center; gap: 4px; text-align: center; padding: 34px 16px; color: var(--text-2); background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; }
+.empty-ico { font-size: 28px; }
+.empty b { color: var(--text); font-size: 15px; }
+.empty span { font-size: 13px; color: var(--text-3); }
+.sumstrip { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.sum { border-left: 4px solid var(--line); }
+.sum.ok { border-left-color: #2b9a5e; } .sum.warn { border-left-color: #e0a100; } .sum.alert { border-left-color: #d93a2b; } .sum.none { border-left-color: var(--line); }
+.sum .lbl { color: var(--text-2); font-size: 12px; }
+.sum .big { font-size: 30px; font-weight: 600; line-height: 1.15; margin: 2px 0; }
+.sum .big span { font-size: 14px; font-weight: 400; color: var(--text-2); }
+.sum .meta { font-size: 12px; color: var(--text-3); }
+.heat-sub { display: block; font-size: 11px; font-weight: 400; opacity: .85; margin-top: 1px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip2 { display: inline-flex; align-items: center; gap: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); display: inline-block; }
+.dot.ok { background: #2b9a5e; } .dot.warn { background: #e0a100; } .dot.alert { background: #d93a2b; }
+.spark { margin-top: 6px; }
+.legend i.band { border-top: 8px solid rgba(143,139,133,.25); height: 0; width: 18px; }

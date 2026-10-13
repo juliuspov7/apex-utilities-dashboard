@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ALERT, UTILS, WARN, aggregate, fmt, fmtK, fmtPct, level, perM2, perRoom, pick, type Level } from "@/lib/kpi";
 import type { Dataset, Hotel, Issue, Row, Utility } from "@/lib/types";
 
@@ -18,12 +18,42 @@ function ago(iso: string | null, now: number) {
   return `${Math.round(m / 60)} h ago`;
 }
 
-function Heat({ dev }: { dev: number | null }) {
+const signed = (v: number, d = 0) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("en-GB", { maximumFractionDigits: d })}`;
+
+function Heat({ agg, unit, money }: { agg: ReturnType<typeof aggregate>; unit: string; money?: boolean }) {
+  const dev = agg.dev;
   const l = level(dev);
+  const diff = agg.act !== null && agg.bud !== null ? agg.act - agg.bud : null;
+  const amount = diff === null ? "" : money ? `${signed(diff)} €` : `${signed(diff)} ${unit}`;
   return (
-    <span className={`heat ${l}`} title={dev === null ? "No valid data in this period (see Data quality)" : `Actual vs budget ${fmtPct(dev)}`}>
-      {dev === null ? "no data" : `${ICON[l]} ${fmtPct(dev)}`}
+    <span className={`heat ${l}`} title={dev === null ? "No valid data in this period (see Data quality)" : `Actual vs budget ${fmtPct(dev)} (${amount})`}>
+      {dev === null ? "no data" : (<>{`${ICON[l]} ${fmtPct(dev)}`}<span className="heat-sub">{amount}</span></>)}
     </span>
+  );
+}
+
+function Spinner({ small }: { small?: boolean }) {
+  return <span className={`spinner${small ? " sm" : ""}`} role="status" aria-label="Loading" />;
+}
+
+function Empty({ icon, title, hint }: { icon: string; title: string; hint?: string }) {
+  return (
+    <div className="empty">
+      <div className="empty-ico">{icon}</div>
+      <b>{title}</b>
+      {hint && <span>{hint}</span>}
+    </div>
+  );
+}
+
+function Skeleton() {
+  return (
+    <div className="wrap" style={{ marginTop: 20 }} aria-busy="true">
+      <div className="skel" style={{ height: 36, width: 420, marginBottom: 18 }} />
+      <div className="grid tiles">{[0, 1, 2, 3].map((i) => <div key={i} className="skel" style={{ height: 96 }} />)}</div>
+      <div className="skel" style={{ height: 380, marginTop: 12 }} />
+      <p className="small" style={{ textAlign: "center", marginTop: 14 }}><Spinner small /> Loading the latest data…</p>
+    </div>
   );
 }
 
@@ -57,7 +87,13 @@ export default function Dashboard() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(false); }, [load]);
+  useEffect(() => {
+    load(false);
+    const q = new URLSearchParams(window.location.search); // deep links: ?tab=hotel&hotel=H02
+    const t = q.get("tab") as Tab | null;
+    if (t === "portfolio" || t === "hotel" || t === "quality") setTab(t);
+    if (q.get("hotel")) setHotelId(q.get("hotel")!);
+  }, [load]);
   // automatic refresh every 5 hours
   useEffect(() => { const t = setInterval(() => load(true), REFRESH_MS); return () => clearInterval(t); }, [load]);
   // clock for "x min ago"
@@ -136,9 +172,9 @@ export default function Dashboard() {
     return (
       <>
         <Header onRefresh={() => load(true)} loading={loading} data={null} now={now} lastLoad={lastLoad} />
-        <div className="wrap">
-          <p style={{ marginTop: 32 }}>{error ? `Cannot load data: ${error}` : "Loading…"}</p>
-        </div>
+        {error
+          ? <div className="wrap"><div className="banner alert" style={{ marginTop: 24 }}>Cannot load data: {error}</div><Empty icon="⚠" title="The dashboard could not load" hint="Press “Refresh now” to try again." /></div>
+          : <Skeleton />}
       </>
     );
   }
@@ -188,7 +224,7 @@ export default function Dashboard() {
         <div style={{ marginTop: 16 }}>
           {tab === "portfolio" && (
             <Portfolio
-              perHotel={perHotel} total={total} attention={attention} rows={periodRows} hotels={hotels}
+              perHotel={perHotel} total={total} attention={attention} rows={periodRows} hotels={hotels} issues={periodIssues}
               allRows={data.rows} hotelIds={hotelIds} pTo={pTo} pFrom={pFrom} months={months}
               trendUtil={trendUtil} setTrendUtil={setTrendUtil}
               open={(id) => { setHotelId(id); setTab("hotel"); }}
@@ -211,30 +247,38 @@ export default function Dashboard() {
 function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | null; onRefresh: () => void; loading: boolean; now: number; lastLoad: string | null }) {
   const m = data?.meta;
   const np = m?.nowPrice;
+  const priceDot = !m ? "none" : m.priceStatus === "live" ? "ok" : m.priceStatus === "cached" ? "warn" : m.priceStatus === "unavailable" ? "alert" : "none";
+  const priceText = !m ? "" : m.priceStatus === "live" ? "Prices live" : m.priceStatus === "cached" ? "Prices stored" : m.priceStatus === "unavailable" ? "Prices unavailable" : "No spot prices needed";
+  const sample = !!m && m.source !== "upload";
   return (
     <header className="top">
       <div className="wrap">
         <img src="/apex-logo.svg" alt="Apex Alliance" className="logo" />
         <h1>Utilities dashboard</h1>
-        <div className="status">
-          <span>Last updated: <b>{lastLoad ? new Date(lastLoad).toLocaleString("en-GB") : "–"}</b> ({ago(lastLoad, now)})</span>
-          {m && <span>Data file: {m.source === "upload" && m.sourceUpdatedAt ? new Date(m.sourceUpdatedAt).toLocaleString("en-GB") : "built-in sample"}</span>}
+        <div className="chips">
+          <span className="chip2" title={lastLoad ? `Last updated ${new Date(lastLoad).toLocaleString("en-GB")}` : ""}>
+            <i className={`dot ${lastLoad ? "ok" : "none"}`} />Updated {ago(lastLoad, now)}
+          </span>
           {m && (
-            <span>Prices: {m.priceStatus === "live" ? "live (Elering)" : m.priceStatus === "cached" ? "stored (Elering unreachable)" : m.priceStatus === "unavailable" ? "unavailable" : "n/a"}</span>
+            <span className="chip2" title={m.sourceUpdatedAt ? `Data file uploaded ${new Date(m.sourceUpdatedAt).toLocaleString("en-GB")}` : "Built-in sample data"}>
+              <i className={`dot ${sample ? "warn" : "ok"}`} />{sample ? "Sample data" : `File ${new Date(m.sourceUpdatedAt!).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`}
+            </span>
           )}
-          {np && np.lt !== undefined && (
-            <span title={`Day-ahead price at ${np.ts}`}>Now €/MWh: LT {fmt(np.lt ?? null, 0)} · LV {fmt(np.lv ?? null, 0)} · EE {fmt(np.ee ?? null, 0)}</span>
+          {m && (
+            <span className="chip2" title={np ? `Day-ahead price at ${np.ts} (€/MWh)` : m.priceMessage}>
+              <i className={`dot ${priceDot}`} />{priceText}{np && np.lt !== undefined ? ` · LT ${fmt(np.lt ?? null, 0)} · LV ${fmt(np.lv ?? null, 0)} · EE ${fmt(np.ee ?? null, 0)} €/MWh` : ""}
+            </span>
           )}
         </div>
         <div className="sp" />
         <a className="btn" href="/admin" style={{ textDecoration: "none" }}>⬆ Upload data</a>
-        <button className="btn primary" onClick={onRefresh} disabled={loading}>{loading ? "Refreshing…" : "↻ Refresh now"}</button>
+        <button className="btn primary" onClick={onRefresh} disabled={loading}>{loading ? <><Spinner small /> Refreshing…</> : "↻ Refresh now"}</button>
       </div>
     </header>
   );
 }
 
-function Tile({ label, agg, unit, money }: { label: string; agg: ReturnType<typeof aggregate>; unit: string; money?: boolean }) {
+function Tile({ label, agg, unit, money, spark }: { label: string; agg: ReturnType<typeof aggregate>; unit: string; money?: boolean; spark?: number[] }) {
   const l = level(agg.dev);
   return (
     <div className="card tile">
@@ -243,6 +287,15 @@ function Tile({ label, agg, unit, money }: { label: string; agg: ReturnType<type
       <div className="meta">
         Budget {money && agg.bud !== null ? "€" : ""}{fmt(agg.bud)} · <span className={`pill ${l}`}>{agg.dev === null ? "no data" : `${ICON[l]} ${fmtPct(agg.dev)}`}</span>
       </div>
+      {spark && spark.length > 1 && (
+        <div className="spark" title="Last 12 months">
+          <ResponsiveContainer width="100%" height={34}>
+            <LineChart data={spark.map((v, i) => ({ i, v }))} margin={{ top: 3, right: 2, bottom: 3, left: 2 }}>
+              <Line type="linear" dataKey="v" stroke="var(--series)" strokeWidth={1.8} dot={false} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
@@ -251,6 +304,7 @@ function Portfolio(p: {
   perHotel: { h: Hotel; aggs: Record<Utility, ReturnType<typeof aggregate>>; elRoom: number | null; elM2: number | null; heatM2: number | null; waterRoom: number | null; missing: boolean }[];
   total: Record<Utility, ReturnType<typeof aggregate>>;
   attention: { hotel: string; util: string; dev: number; l: Level }[];
+  issues: Issue[];
   rows: Row[]; hotels: Hotel[]; allRows: Row[]; hotelIds: Set<string>; pFrom: string; pTo: string; months: string[];
   trendUtil: Utility; setTrendUtil: (u: Utility) => void; open: (id: string) => void;
 }) {
@@ -270,8 +324,40 @@ function Portfolio(p: {
     return { month: m, actual: a.act, budget: a.bud };
   });
 
+  const overBudget = p.perHotel.filter((x) => UTILS.some((u) => (x.aggs[u.key].dev ?? -1) >= WARN)).length;
+  const redHotels = p.perHotel.filter((x) => UTILS.some((u) => (x.aggs[u.key].dev ?? -1) >= ALERT)).length;
+  const warnings = p.attention.length - alerts.length;
+  const excluded = p.issues.filter((i) => i.action === "excluded").length;
+  const flagged = p.issues.filter((i) => i.action === "flagged").length;
+  const cost = p.total.cost;
+  const costDiff = cost.act !== null && cost.bud !== null ? cost.act - cost.bud : null;
+
+  if (p.perHotel.length === 0) return <Empty icon="🏨" title="No hotels match this filter" hint="Choose another country or period." />;
+
   return (
     <div className="grid">
+      <div className="grid sumstrip">
+        <div className={`card sum ${redHotels ? "alert" : overBudget ? "warn" : "ok"}`}>
+          <div className="lbl">Hotels over budget</div>
+          <div className="big">{overBudget}<span> of {p.perHotel.length}</span></div>
+          <div className="meta">{redHotels} with a red alert (≥ +{ALERT * 100}%)</div>
+        </div>
+        <div className={`card sum ${alerts.length ? "alert" : warnings ? "warn" : "ok"}`}>
+          <div className="lbl">Alerts</div>
+          <div className="big">{alerts.length}<span> red</span></div>
+          <div className="meta">{warnings} more warning{warnings === 1 ? "" : "s"} (≥ +{WARN * 100}%)</div>
+        </div>
+        <div className={`card sum ${level(cost.dev) === "none" ? "none" : level(cost.dev)}`}>
+          <div className="lbl">Electricity cost vs budget</div>
+          <div className="big">{costDiff === null ? "–" : `${signed(costDiff)} €`}<span>{cost.dev === null ? "" : ` ${fmtPct(cost.dev)}`}</span></div>
+          <div className="meta">{cost.act === null ? "no valid data" : `€${fmt(cost.act)} actual · €${fmt(cost.bud)} budget`}</div>
+        </div>
+        <div className={`card sum ${excluded ? "warn" : "ok"}`}>
+          <div className="lbl">Data issues</div>
+          <div className="big">{excluded}<span> excluded</span></div>
+          <div className="meta">{flagged} flagged · see Data quality</div>
+        </div>
+      </div>
       <div className="card">
         <p className="attn">
           {alerts.length === 0 && p.attention.length === 0
@@ -296,7 +382,7 @@ function Portfolio(p: {
                 <tr key={x.h.id} className="click" onClick={() => p.open(x.h.id)}>
                   <td><b>{x.h.id}</b> <span className="small">{x.h.contract === "Spot" ? "spot" : "fixed"}</span></td>
                   <td>{x.h.country}</td>
-                  {UTILS.map((u) => <td key={u.key}><Heat dev={x.aggs[u.key].dev} /></td>)}
+                  {UTILS.map((u) => <td key={u.key}><Heat agg={x.aggs[u.key]} unit={u.unit} money={u.key === "cost"} /></td>)}
                   <td className="n">{fmt(x.elRoom, 1)}</td><td className="n">{fmt(x.elM2, 1)}</td><td className="n">{fmt(x.heatM2, 1)}</td><td className="n">{fmt(x.waterRoom, 2)}</td>
                 </tr>
               ))}
@@ -340,10 +426,10 @@ function TrendCard({ title, data, util, setUtil }: { title: string; data: { mont
           {UTILS.map((x) => <button key={x.key} className={util === x.key ? "on" : ""} onClick={() => setUtil(x.key)}>{x.label}</button>)}
         </div>
       </div>
-      <div className="legend"><span><i />Actual</span><span><i className="b" />Budget</span></div>
+      <div className="legend"><span><i />Actual</span><span><i className="band" />Budget (shaded band)</span></div>
       <div style={{ height: 260 }}>
         <ResponsiveContainer>
-          <LineChart data={data} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
+          <ComposedChart data={data} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--grid)" vertical={false} />
             <XAxis dataKey="month" tick={{ fill: "var(--text-3)", fontSize: 11 }} tickLine={false} axisLine={{ stroke: "var(--line)" }} />
             <YAxis tick={{ fill: "var(--text-3)", fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={fmtK} width={48} />
@@ -351,9 +437,9 @@ function TrendCard({ title, data, util, setUtil }: { title: string; data: { mont
               contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 6, fontSize: 12 }}
               formatter={(v, n) => [v === null || v === undefined ? "excluded / no data" : `${fmt(Number(v))} ${u.unit}`, n === "actual" ? "Actual" : "Budget"]}
             />
-            <Line type="linear" dataKey="budget" stroke="var(--budget)" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} isAnimationActive={false} />
+            <Area type="linear" dataKey="budget" stroke="var(--budget)" strokeWidth={1.5} strokeDasharray="5 4" fill="var(--budget)" fillOpacity={0.14} dot={false} connectNulls={false} isAnimationActive={false} />
             <Line type="linear" dataKey="actual" stroke="var(--series)" strokeWidth={2} dot={{ r: 3, strokeWidth: 2, stroke: "var(--surface)" }} connectNulls={false} isAnimationActive={false} />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
       <div className="small">Gaps in the actual line are months excluded for data-quality reasons (see Data quality).</div>
@@ -382,9 +468,26 @@ function HotelView(p: {
     const bud = r && r.el_b && r.occ_b ? r.el_b / r.occ_b : null;
     return { month: m, actual: ok ? r!.el! / r!.occ! : null, budget: bud };
   });
+  const sparkMonths = p.months.filter((m) => m <= p.pTo).slice(-12);
+  const spark = (u: Utility) => sparkMonths.map((m) => p.rows.find((x) => x.month === m)).map((r) => (r ? pick(r, u)[0] : null)).filter((v): v is number => v !== null);
   const priceNow = h.contract === "Spot" && p.nowPrice ? (p.nowPrice as Record<string, number | string | undefined>) : null;
   const countryArea = ({ LT: "lt", LV: "lv", EE: "ee" } as Record<string, "lt" | "lv" | "ee">)[h.country];
   const live = priceNow && countryArea ? (priceNow[countryArea] as number | undefined) : undefined;
+
+  if (inPeriod.length === 0) {
+    return (
+      <div className="grid">
+        <div className="bar" style={{ margin: 0 }}>
+          <label>Hotel
+            <select value={h.id} onChange={(e) => p.setHotel(e.target.value)}>
+              {p.hotels.map((x) => <option key={x.id} value={x.id}>{x.id} · {x.country} · {x.segment}</option>)}
+            </select>
+          </label>
+        </div>
+        <Empty icon="📭" title={`No report from ${h.id} for this period`} hint="Choose another period or hotel, or ask the hotel to send the missing month." />
+      </div>
+    );
+  }
 
   return (
     <div className="grid">
@@ -400,10 +503,10 @@ function HotelView(p: {
         </span>
       </div>
       <div className="grid tiles" style={{ margin: 0 }}>
-        <Tile label="Electricity" agg={aggs.el} unit="kWh" />
-        <Tile label="Electricity cost" agg={aggs.cost} unit="€" money />
-        <Tile label="Heating" agg={aggs.heat} unit="kWh" />
-        <Tile label="Water" agg={aggs.water} unit="m³" />
+        <Tile label="Electricity" agg={aggs.el} unit="kWh" spark={spark("el")} />
+        <Tile label="Electricity cost" agg={aggs.cost} unit="€" money spark={spark("cost")} />
+        <Tile label="Heating" agg={aggs.heat} unit="kWh" spark={spark("heat")} />
+        <Tile label="Water" agg={aggs.water} unit="m³" spark={spark("water")} />
         <div className="card tile">
           <div className="lbl">Intensity (this period)</div>
           <div className="meta" style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7 }}>
@@ -419,17 +522,17 @@ function HotelView(p: {
         <TrendCard title={h.id} data={trend} util={p.trendUtil} setUtil={p.setTrendUtil} />
         <div className="card">
           <h2>{h.id}: electricity per occupied room (kWh)</h2>
-          <div className="legend"><span><i />Actual</span><span><i className="b" />Budget (budget kWh ÷ budget rooms)</span></div>
+          <div className="legend"><span><i />Actual</span><span><i className="band" />Budget (budget kWh ÷ budget rooms)</span></div>
           <div style={{ height: 260 }}>
             <ResponsiveContainer>
-              <LineChart data={intensity} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
+              <ComposedChart data={intensity} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid stroke="var(--grid)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: "var(--text-3)", fontSize: 11 }} tickLine={false} axisLine={{ stroke: "var(--line)" }} />
                 <YAxis tick={{ fill: "var(--text-3)", fontSize: 11 }} tickLine={false} axisLine={false} width={40} domain={["auto", "auto"]} tickFormatter={(v) => fmt(v, 0)} />
                 <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 6, fontSize: 12 }} formatter={(v, n) => [v === null || v === undefined ? "excluded / no data" : `${fmt(Number(v), 1)} kWh`, n === "actual" ? "Actual" : "Budget"]} />
-                <Line type="linear" dataKey="budget" stroke="var(--budget)" strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+                <Area type="linear" dataKey="budget" stroke="var(--budget)" strokeWidth={1.5} strokeDasharray="5 4" fill="var(--budget)" fillOpacity={0.14} dot={false} isAnimationActive={false} />
                 <Line type="linear" dataKey="actual" stroke="var(--series)" strokeWidth={2} dot={{ r: 3, strokeWidth: 2, stroke: "var(--surface)" }} isAnimationActive={false} />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -445,7 +548,7 @@ function HotelView(p: {
 const KIND_LABEL = { excluded: "Excluded from KPIs", flagged: "Flagged (used)", info: "Info" } as const;
 
 function IssueTable({ issues }: { issues: Issue[] }) {
-  if (!issues.length) return <p className="small">No issues.</p>;
+  if (!issues.length) return <Empty icon="✓" title="No data issues" hint="Everything in this selection passed the checks." />;
   const sorted = [...issues].sort((a, b) => b.month.localeCompare(a.month) || a.hotel.localeCompare(b.hotel));
   return (
     <div className="scroll">
