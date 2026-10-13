@@ -1,52 +1,116 @@
 # Apex utilities dashboard (Task 2)
 
-Live link: https://apex-utilities-mu.vercel.app (view password supplied separately). Updates: `/admin` (upload password supplied separately).
+A web dashboard that compares the monthly utility data of the Apex hotels with their budget and shows which hotel and which utility needs attention. It also calculates electricity cost, using the live day-ahead price for hotels on a spot contract.
 
-Anonymised assignment data. Keep this repository private.
+- **Live:** https://apex-utilities-mu.vercel.app (view password is sent separately)
+- **Update the data:** `/admin` (upload password is sent separately), or the “Upload data” link in the dashboard header
+- The data is anonymised assignment data. Keep this repository private.
 
-## What it shows
-- **Portfolio**: one row per hotel, coloured cells = actual vs budget for electricity kWh, electricity €, heating, water. Green < +10 %, amber ≥ +10 %, red ≥ +20 %. Sorted worst first. Headline: number of alerts.
-- **Hotel**: tiles, actual-vs-budget trend per utility, electricity per occupied room trend, the hotel's data issues.
-- **Data quality**: every excluded or flagged value with the reason. Nothing is silently corrected.
-- Filters: country, period (latest month, last 3, YTD, last 12, custom from/to).
+## What you see
+
+| Screen | What it shows |
+|---|---|
+| **Portfolio** | One row per hotel, sorted worst first. Coloured cells show actual vs budget for electricity kWh, electricity €, heating and water (green below +10 %, amber from +10 %, red from +20 %). Next to them: kWh per occupied room, kWh per m² (electricity and heating) and water m³ per occupied room. Totals and a trend chart below. |
+| **Hotel** | The same numbers for one hotel, a trend per utility, electricity per occupied room over time, and the data problems found for that hotel. |
+| **Data quality** | Every value that was excluded or flagged, with the reason. Nothing is corrected silently. |
+
+Filters: country, and period (latest month, last 3 months, year to date, last 12 months, or a custom range). The header always shows when the data was last updated, when the data file was uploaded, and whether the electricity prices are live.
+
+## How it works
+
+```
+Excel file ──► /admin upload ──► private Blob storage
+                (checked first)         │
+                                        ▼
+   Elering day-ahead prices ──► /api/data: read file → apply data checks → add tariffs and prices → calculate KPIs
+                                        │
+                                        ▼
+                                  dashboard in the browser
+```
+
+1. An analyst uploads the monthly Excel file (same four sheets as the original: Hotels, Tariffs, Monthly_Actuals, Monthly_Budget). A file that cannot be read is rejected and the old data stays. The previous file is archived.
+2. `/api/data` reads the current file, finds data problems, adds the electricity price and calculates everything.
+3. The browser shows the result. It checks every minute whether a new file was uploaded and reloads by itself.
+
+## Where things are
+
+| File | What it does |
+|---|---|
+| `app/page.tsx`, `app/layout.tsx` | The page shell. |
+| `app/Dashboard.tsx` | The whole dashboard screen: filters, portfolio table, hotel view, data quality list, charts, refresh button and the 5-hour reload. |
+| `app/admin/page.tsx` | The upload page. |
+| `app/login/page.tsx`, `app/api/login/route.ts`, `proxy.ts`, `lib/gate.ts` | The password gate. `proxy.ts` sends visitors without the cookie to the login page. |
+| `app/api/data/route.ts` | Returns the calculated data to the dashboard (`?force=1` also refreshes the prices). |
+| `app/api/version/route.ts` | Returns the time of the last upload, so the browser can notice a new file. |
+| `app/api/upload/route.ts` | Receives the Excel file, checks it, archives the old one and stores the new one. |
+| `app/api/cron/refresh/route.ts` | Called by the scheduled job to refresh prices. Protected by `CRON_SECRET`. Returns an error status if prices are missing or sample data is shown. |
+| `lib/model.ts` | **The data rules.** Reads the workbook, finds duplicates, wrong units, missing and impossible values, and calculates electricity cost. |
+| `lib/kpi.ts` | The KPI formulas (actual vs budget, per room, per m²) and the alert levels. |
+| `lib/prices.ts` | Fetches the Elering day-ahead prices, averages them per month and keeps them in storage. Retries missing months and falls back to stored prices. |
+| `lib/dataset.ts` | Puts it together: loads the file (or the built-in sample), the prices and the model. |
+| `lib/store.ts` | Storage: private Vercel Blob, or a local folder when running locally. |
+| `lib/types.ts` | Shared types. |
+| `data/seed.xlsx` | The original assignment data. Shown only if no file has been uploaded or the uploaded file cannot be read. |
+| `tests/model.test.ts` | Unit tests of the data rules and tariffs. |
+| `tests/e2e.mjs` | End-to-end check against a running site: upload, new month visible, correction applied, broken file and wrong password refused. |
+| `tests/Apex_TEST_01…03.xlsx` | Three workbooks for trying the upload by hand: a new month with a correction, a file with data-quality problems, and a file with an invalid structure. |
+| `.github/workflows/refresh.yml` | Calls the refresh endpoint about every 5 hours. |
+| `.github/workflows/test.yml` | Runs the type check and unit tests on every push. |
 
 ## KPI definitions
-| KPI | Formula |
+
+| KPI | Calculation |
 |---|---|
-| Actual vs budget | Σ actual ÷ Σ budget − 1, only over months where the actual is valid *and* a budget exists (like for like) |
-| kWh / occupied room | Σ kWh ÷ Σ occupied rooms (electricity and heating shown separately), months where both are valid |
-| kWh / m² (electricity and heating separately) | Σ kWh over the **selected period** ÷ gross floor area, so a 12-month period shows ~12× one month. The period is printed next to the figure |
-| Water m³ / occupied room | Σ m³ ÷ Σ occupied rooms |
-| Electricity cost, fixed hotels | kWh × (fixed price + grid fee) |
-| Electricity cost, spot hotels | kWh × (monthly average day-ahead price ÷ 1000 + supplier margin + grid fee) |
+| Actual vs budget | Total actual ÷ total budget − 1, only for months where both a valid actual and a budget exist |
+| kWh per occupied room | Total kWh ÷ total occupied rooms (electricity and heating shown separately) |
+| kWh per m² | Total kWh of the **selected period** ÷ floor area. A 12-month period therefore shows about twelve times a one-month value, and the period is printed next to the number |
+| Water per occupied room | Total m³ ÷ total occupied rooms |
+| Electricity cost, fixed tariff | kWh × (fixed price + grid fee) |
+| Electricity cost, spot tariff | kWh × (monthly average day-ahead price ÷ 1000 + supplier margin + grid fee) |
 
-Simplification: only monthly consumption exists, so the monthly *simple average* of Elering day-ahead prices is used. With hourly meter data a consumption-weighted price would be more accurate.
+Only monthly consumption exists, so the monthly simple average of the day-ahead price is used. Using hourly meter data would allow a consumption-weighted price.
 
-## Data-quality rules (`lib/model.ts`)
-Excluded from KPIs (and from the matching budget months): empty / non-numeric, zero or negative values, occupied rooms above rooms × days, values < 5 % or > 3× of budget (likely unit or typing error), conflicting duplicate rows, unknown hotels, hotels without tariff or spot price area. Counted once: identical duplicates. Flagged but used: guests inconsistent with occupied rooms, values < 30 % of budget. Info: no budget row, hotel has not reported yet.
-Text numbers (`"52 194"`, `"39,5"`) and alternative month/hotel formats (`09.2025`, `Hotel 03`) are understood.
+## Data checks (`lib/model.ts`)
 
-## Updating the data
-1. Open `/admin`, choose the new xlsx (same sheets as the original), enter the upload password.
-2. The file is validated first; an unreadable file is rejected and the old data stays live. The previous file is archived in Blob (`apex/archive/`). A warning is shown if history that was in the old file is missing.
-3. The dashboard checks the file version every minute and reloads itself; the *Refresh now* button forces it immediately.
+- **Excluded from the KPIs, and listed with a reason:** empty or non-numeric values, zero or negative values, occupied rooms above what the hotel can physically have, values below 5 % or above 3× the budget (likely a unit or typing error), conflicting duplicate rows, rows for unknown hotels, hotels without a tariff.
+- **Counted once:** identical duplicate rows.
+- **Used but flagged:** guests that do not fit the occupied rooms; values below 30 % of budget; months without a budget row.
+- Text numbers (`"52 194"`, `"39,5"`) and other month or hotel formats (`09.2025`, `Hotel 03`) are understood.
 
-## Refresh and resilience
-- *Refresh now*: re-reads the file and re-fetches prices (`/api/data?force=1`). *Last updated*, the data-file time and the price status are always visible in the header.
-- Every 5 h: the open dashboard reloads itself, and a GitHub Actions schedule (`.github/workflows/refresh.yml`, approx. every 5 h, GitHub may delay runs) calls `/api/cron/refresh` (secret `CRON_SECRET`) so prices stay fresh even when nobody has the page open. The run turns red if prices are unavailable or sample data is shown.
-- Elering unreachable: last stored prices are used and a yellow banner says so; with no stored prices, spot cost is left empty and the banner says so. Finished months missing an area are re-requested at most every 5 h.
-- File missing or unreadable: built-in sample data with a banner.
+## If something is missing
 
-## Architecture
-Next.js (App Router) on Vercel · Vercel Blob (private store) for the data file and price cache · Elering API · password gate in `proxy.ts` (`DASH_PASSWORD`). Real roll-out: Microsoft Entra SSO, one group per hotel / country, read-only for GMs, upload restricted to HQ analysts.
-Env vars: `DASH_PASSWORD`, `UPLOAD_PASSWORD`, `CRON_SECRET`, `BLOB_READ_WRITE_TOKEN` (set by linking a private Blob store). Without them (local dev) the gate is off and files go to `.local-store/`.
+| Situation | What the dashboard does |
+|---|---|
+| Elering cannot be reached | Uses the last stored prices and shows a yellow banner. With no stored prices, spot cost is left empty and the banner says so. |
+| The uploaded file cannot be read | The upload is rejected and the previous data stays. |
+| No file has been uploaded | Shows the built-in sample data with a banner. |
+| The scheduled refresh finds missing prices | The GitHub job turns red (the dashboard itself keeps working). |
 
-## Develop
+## Settings (environment variables)
+
+| Name | Purpose |
+|---|---|
+| `DASH_PASSWORD` | Password to open the dashboard. If it is not set, there is no password (local use). |
+| `UPLOAD_PASSWORD` | Password for the upload page. |
+| `CRON_SECRET` | Secret for the scheduled refresh. Also stored as a GitHub secret together with `DASHBOARD_URL`. |
+| `BLOB_READ_WRITE_TOKEN` | Set by connecting a **private** Vercel Blob store to the project. Without it, files are kept in `.local-store/`. |
+
+## Run it yourself
+
 ```
 npm install
 npm run dev      # http://localhost:3000
-npm test         # unit tests (node:test)
+npm test         # unit tests
+npm run e2e -- path/to/original.xlsx   # against a running site: BASE_URL, DASH_PASSWORD, UPLOAD_PASSWORD
 ```
 
-## End-to-end check
-`BASE_URL=https://… DASH_PASSWORD=… UPLOAD_PASSWORD=… npm run e2e -- path/to/original.xlsx` logs in, uploads an updated file (new month + a correction), checks that `/api/data` shows both, checks that a broken file and a wrong password are refused, and restores the original file.
+## Real roll-out
+
+The demo uses one shared view password. In a real roll-out I would use Microsoft Entra ID sign-in with groups per country or hotel (read only), and limit the upload to HQ analysts. The archive of uploaded files serves as the audit trail.
+
+## Limitations
+
+- Electricity price uses a monthly average, see above. Prices exclude any VAT or taxes that are not in the Tariffs sheet.
+- Alert thresholds (10 % and 20 %) are fixed in the code.
+- The scheduled refresh is approximate: GitHub may delay scheduled runs.
+- Corrections are shown in the dashboard but not written back to the source Excel.
