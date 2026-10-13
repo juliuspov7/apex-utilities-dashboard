@@ -83,3 +83,16 @@ tr.click:hover td { background: var(--bg); }
 .tt { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 12px; }
 
 .logo { height: 44px; width: auto; background: #fff; border-radius: 8px; padding: 4px 10px; }
+
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: linear-gradient(135deg, #005a55 0%, #00403c 100%); }
+.login-card { width: 100%; max-width: 380px; background: var(--surface); border-radius: 14px; padding: 32px 28px 22px; box-shadow: 0 20px 50px rgba(0,0,0,.28); display: grid; gap: 14px; border-top: 4px solid var(--accent); }
+.login-logo { height: 52px; width: auto; justify-self: start; background: #fff; border-radius: 8px; padding: 4px 10px; margin-left: -10px; }
+.login-card h1 { margin: 4px 0 0; font-size: 22px; }
+.login-card p { margin: 0; color: var(--text-2); font-size: 14px; }
+.login-card input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+.login-card input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+.login-card button { padding: 11px; border: 0; border-radius: 8px; background: #005a55; color: #fff; font-weight: 600; cursor: pointer; }
+.login-card button:hover { background: #00706a; }
+.login-card button:disabled { opacity: .7; cursor: default; }
+.login-err { background: var(--alert-bg); color: var(--alert-fg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.login-foot { color: var(--text-3); font-size: 11px; text-align: center; margin-top: 4px; }
