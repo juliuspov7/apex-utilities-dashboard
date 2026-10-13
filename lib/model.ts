@@ -108,15 +108,40 @@ function daysIn(month: string) {
 
 export function build(parsed: Parsed, prices: PriceResult) {
   const issues: Issue[] = [];
-  const hotelById = new Map(parsed.hotels.map((h) => [h.id, h]));
+  const hotelById = new Map<string, Hotel>();
+  for (const h of parsed.hotels) if (!hotelById.has(h.id)) hotelById.set(h.id, h);
   const add = (i: Issue) => issues.push(i);
+
+  // ---- structural checks on master data
+  const budgetCols = { electricity_kwh_bu: 1, heating_kwh_bu: 1, water_m3_bu: 1, electricity_cost_bu_eur: 1, occupied_rooms_bu: 1 };
+  const seenHotel = new Set<string>();
+  for (const h of parsed.hotels) {
+    if (seenHotel.has(h.id)) add({ hotel: h.id, month: "-", field: "hotels", kind: "duplicate hotel", message: `Hotel ${h.id} is listed more than once in the Hotels sheet – first entry used`, action: "flagged" });
+    seenHotel.add(h.id);
+    const t = parsed.tariffs[h.country];
+    if (!t) add({ hotel: h.id, month: "-", field: "tariff", kind: "no tariff", message: `No tariff row for country ${h.country} – electricity cost cannot be calculated`, action: "excluded" });
+    else if (t.type === "Spot" && !["lt", "lv", "ee"].includes(t.area)) add({ hotel: h.id, month: "-", field: "tariff", kind: "bad price area", message: `Spot tariff for ${h.country} has price area "${t.area || "empty"}" (expected LT, LV or EE) – electricity cost cannot be calculated`, action: "excluded" });
+  }
 
   // ---- budget lookup
   const budget = new Map<string, Raw>();
+  const conflictBudget = new Set<string>();
   for (const b of parsed.budget) {
     const h = normHotel(b.hotel_id);
     const m = normMonth(b.month);
-    if (h && m) budget.set(`${h}|${m}`, b);
+    if (!h || !m) continue;
+    const k = `${h}|${m}`;
+    const prev = budget.get(k);
+    if (prev) {
+      const same = Object.keys(budgetCols).every((c) => num(prev[c]) === num(b[c]));
+      if (!same) {
+        conflictBudget.add(k);
+        add({ hotel: h, month: m, field: "budget", kind: "budget conflict", message: "Two different budget rows for this month – budget comparison skipped until confirmed", action: "excluded" });
+        continue;
+      }
+      add({ hotel: h, month: m, field: "budget", kind: "duplicate", message: "Budget row appears more than once with identical values – counted once", action: "info" });
+    }
+    budget.set(k, b);
   }
 
   // ---- actuals: normalise, detect duplicates
@@ -148,19 +173,21 @@ export function build(parsed: Parsed, prices: PriceResult) {
   for (const [k, list] of byKey) {
     const [hotel, month] = k.split("|");
     let a = list[list.length - 1];
+    let conflict = false;
     if (list.length > 1) {
       const same = list.every((x) => fields.every(([, c]) => num(x[c]) === num(list[0][c])));
+      conflict = !same;
+      const detail = list.map((x) => fields.map(([f, c]) => `${f}=${num(x[c]) ?? "empty"}`).join(", ")).join("  |  ");
       add({
         hotel, month, field: "row", kind: "duplicate",
         message: same
           ? `Row appears ${list.length}× with identical values – counted once`
-          : `Row appears ${list.length}× with different values – last one used, please confirm with the hotel`,
-        action: same ? "info" : "flagged",
+          : `Row appears ${list.length}× with DIFFERENT values (${detail}) – excluded from all KPIs until the hotel confirms which one is right`,
+        action: same ? "info" : "excluded",
       });
-      a = list[list.length - 1];
     }
     const h = hotelById.get(hotel)!;
-    const b = budget.get(k);
+    const b = conflictBudget.has(k) ? undefined : budget.get(k);
     const row: Row = {
       hotel, month,
       occ: num(a.occupied_rooms), guests: num(a.guests),
@@ -172,7 +199,13 @@ export function build(parsed: Parsed, prices: PriceResult) {
       cost_b: b ? num(b.electricity_cost_bu_eur) : null,
       cost: null, price: null, bad: [],
     };
-    if (!b) add({ hotel, month, field: "budget", kind: "no budget", message: "No budget row for this month – budget comparison skipped", action: "info" });
+    if (!b && !conflictBudget.has(k)) add({ hotel, month, field: "budget", kind: "no budget", message: "No budget row for this month – budget comparison skipped", action: "info" });
+
+    if (conflict) {
+      row.bad.push("occ", "el", "heat", "water");
+      rows.push(row);
+      continue;
+    }
 
     for (const [f] of fields) {
       const v = row[f];

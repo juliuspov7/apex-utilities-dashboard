@@ -285,7 +285,7 @@ function Portfolio(p: {
               <tr>
                 <th>Hotel</th><th>Ctry</th>
                 {UTILS.map((u) => <th key={u.key} className="n">{u.label} vs budget</th>)}
-                <th className="n">kWh / occ. room</th><th className="n">kWh / m²</th><th className="n">water m³ / occ. room</th>
+                <th className="n">kWh / occ. room</th><th className="n" title="Electricity for the whole selected period divided by floor area – a 12-month period shows ~12× a one-month value">kWh / m² (period)</th><th className="n">water m³ / occ. room</th>
               </tr>
             </thead>
             <tbody>
@@ -315,7 +315,7 @@ function Portfolio(p: {
           <div className="meta" style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7 }}>
             Electricity {fmt(kwhRoom, 1)} kWh / occupied room<br />
             Heating {fmt(hRoom, 1)} kWh / occupied room<br />
-            Electricity {fmt(kwhM2, 1)} kWh / m²<br />
+            Electricity {fmt(kwhM2, 1)} kWh / m² (whole period)<br />
             Water {fmt(wRoom, 2)} m³ / occupied room
           </div>
         </div>
@@ -404,7 +404,7 @@ function HotelView(p: {
           <div className="meta" style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7 }}>
             {fmt(perRoom(inPeriod, "el"), 1)} kWh electricity / occ. room<br />
             {fmt(perRoom(inPeriod, "heat"), 1)} kWh heating / occ. room<br />
-            {fmt(perM2(inPeriod, [h], "el"), 1)} kWh electricity / m²<br />
+            {fmt(perM2(inPeriod, [h], "el"), 1)} kWh electricity / m² (whole period)<br />
             {fmt(perRoom(inPeriod, "water"), 2)} m³ water / occ. room
           </div>
         </div>

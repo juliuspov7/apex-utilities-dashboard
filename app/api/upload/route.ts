@@ -19,10 +19,13 @@ export async function POST(req: Request) {
   if (file.size > 10 * 1024 * 1024) return Response.json({ error: "File too large (max 10 MB)" }, { status: 400 });
 
   const buf = Buffer.from(await file.arrayBuffer());
+  let newKeys = new Set<string>();
   try {
     // reject files the dashboard could not read; the old file stays live
     const parsed = parseWorkbook(buf);
-    build(parsed, { months: {}, status: "unavailable", message: "", fetchedAt: null, now: null });
+    const built = build(parsed, { months: {}, status: "unavailable", message: "", fetchedAt: null, now: null });
+    if (built.rows.length === 0) throw new Error("no usable rows in Monthly_Actuals");
+    newKeys = new Set(built.rows.map((r) => `${r.hotel}|${r.month}`));
   } catch (e) {
     return Response.json({ error: `File rejected, previous data kept: ${(e as Error).message}` }, { status: 422 });
   }
@@ -30,6 +33,15 @@ export async function POST(req: Request) {
   const type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   const prev = await readStored(CURRENT_FILE).catch(() => null);
   if (prev) await writeStored(`apex/archive/${stamp}-previous.xlsx`, prev.buf, type);
+  // warn (do not block) when history that was in the previous file is missing from the new one
+  let warning: string | null = null;
+  if (prev) {
+    try {
+      const old = build(parseWorkbook(prev.buf), { months: {}, status: "unavailable", message: "", fetchedAt: null, now: null });
+      const lost = old.rows.filter((r) => !newKeys.has(`${r.hotel}|${r.month}`)).length;
+      if (lost > 0) warning = `${lost} hotel-month row(s) that were in the previous file are missing from this one.`;
+    } catch { /* previous file unreadable: nothing to compare */ }
+  }
   await writeStored(CURRENT_FILE, buf, type);
-  return Response.json({ ok: true, name: file.name, bytes: buf.length });
+  return Response.json({ ok: true, name: file.name, bytes: buf.length, rows: newKeys.size, warning });
 }

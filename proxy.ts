@@ -7,7 +7,7 @@ export async function proxy(req: NextRequest) {
   const pw = process.env.DASH_PASSWORD;
   if (!pw) return NextResponse.next();
   const { pathname } = req.nextUrl;
-  if (pathname === "/login" || pathname === "/api/login" || pathname === "/apex-logo.svg") return NextResponse.next();
+  if (pathname === "/login" || pathname === "/api/login" || pathname === "/apex-logo.svg" || pathname === "/api/cron/refresh") return NextResponse.next();
   if (req.cookies.get(GATE_COOKIE)?.value === (await gateToken(pw))) return NextResponse.next();
   if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   return NextResponse.redirect(new URL("/login", req.url));

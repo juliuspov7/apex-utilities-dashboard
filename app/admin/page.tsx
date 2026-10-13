@@ -12,7 +12,7 @@ export default function Admin() {
     try {
       const res = await fetch("/api/upload", { method: "POST", body: new FormData(e.currentTarget) });
       const j = await res.json();
-      setMsg(res.ok ? { ok: true, text: `Uploaded ${j.name}. The dashboard shows the new data immediately.` } : { ok: false, text: j.error });
+      setMsg(res.ok ? { ok: true, text: `Uploaded ${j.name} (${j.rows} hotel-months). The dashboard shows the new data immediately.${j.warning ? " ⚠ " + j.warning : ""}` } : { ok: false, text: j.error });
     } catch {
       setMsg({ ok: false, text: "Network error" });
     }
