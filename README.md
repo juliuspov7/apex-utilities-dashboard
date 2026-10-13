@@ -15,7 +15,7 @@ Anonymised assignment data. Keep this repository private.
 |---|---|
 | Actual vs budget | Σ actual ÷ Σ budget − 1, only over months where the actual is valid *and* a budget exists (like for like) |
 | kWh / occupied room | Σ kWh ÷ Σ occupied rooms (electricity and heating shown separately), months where both are valid |
-| kWh / m² | Σ kWh over the **selected period** ÷ gross floor area, so a 12-month period shows ~12× one month. The period is printed next to the figure |
+| kWh / m² (electricity and heating separately) | Σ kWh over the **selected period** ÷ gross floor area, so a 12-month period shows ~12× one month. The period is printed next to the figure |
 | Water m³ / occupied room | Σ m³ ÷ Σ occupied rooms |
 | Electricity cost, fixed hotels | kWh × (fixed price + grid fee) |
 | Electricity cost, spot hotels | kWh × (monthly average day-ahead price ÷ 1000 + supplier margin + grid fee) |

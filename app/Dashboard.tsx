@@ -108,7 +108,7 @@ export default function Dashboard() {
         const worst = Math.max(...UTILS.map((u) => aggs[u.key].dev ?? -9));
         return {
           h, rows, aggs, worst,
-          elRoom: perRoom(rows, "el"), elM2: perM2(rows, [h], "el"), waterRoom: perRoom(rows, "water"),
+          elRoom: perRoom(rows, "el"), elM2: perM2(rows, [h], "el"), heatM2: perM2(rows, [h], "heat"), waterRoom: perRoom(rows, "water"),
           missing: rows.length === 0,
         };
       }).sort((a, b) => b.worst - a.worst),
@@ -248,7 +248,7 @@ function Tile({ label, agg, unit, money }: { label: string; agg: ReturnType<type
 }
 
 function Portfolio(p: {
-  perHotel: { h: Hotel; aggs: Record<Utility, ReturnType<typeof aggregate>>; elRoom: number | null; elM2: number | null; waterRoom: number | null; missing: boolean }[];
+  perHotel: { h: Hotel; aggs: Record<Utility, ReturnType<typeof aggregate>>; elRoom: number | null; elM2: number | null; heatM2: number | null; waterRoom: number | null; missing: boolean }[];
   total: Record<Utility, ReturnType<typeof aggregate>>;
   attention: { hotel: string; util: string; dev: number; l: Level }[];
   rows: Row[]; hotels: Hotel[]; allRows: Row[]; hotelIds: Set<string>; pFrom: string; pTo: string; months: string[];
@@ -258,6 +258,7 @@ function Portfolio(p: {
   const alerts = p.attention.filter((a) => a.l === "alert");
   const kwhRoom = perRoom(p.rows, "el");
   const kwhM2 = perM2(p.rows, p.hotels, "el");
+  const heatM2 = perM2(p.rows, p.hotels, "heat");
   const wRoom = perRoom(p.rows, "water");
   const hRoom = perRoom(p.rows, "heat");
 
@@ -287,7 +288,7 @@ function Portfolio(p: {
               <tr>
                 <th>Hotel</th><th>Ctry</th>
                 {UTILS.map((u) => <th key={u.key} className="n">{u.label} vs budget</th>)}
-                <th className="n">kWh / occ. room</th><th className="n" title="Electricity for the whole selected period divided by floor area – a 12-month period shows ~12× a one-month value">kWh / m² (period)</th><th className="n">water m³ / occ. room</th>
+                <th className="n">kWh / occ. room</th><th className="n" title="Electricity for the whole selected period divided by floor area – a 12-month period shows ~12× a one-month value">Elec. kWh / m² (period)</th><th className="n" title="Heating for the whole selected period divided by floor area">Heat kWh / m² (period)</th><th className="n">water m³ / occ. room</th>
               </tr>
             </thead>
             <tbody>
@@ -296,7 +297,7 @@ function Portfolio(p: {
                   <td><b>{x.h.id}</b> <span className="small">{x.h.contract === "Spot" ? "spot" : "fixed"}</span></td>
                   <td>{x.h.country}</td>
                   {UTILS.map((u) => <td key={u.key}><Heat dev={x.aggs[u.key].dev} /></td>)}
-                  <td className="n">{fmt(x.elRoom, 1)}</td><td className="n">{fmt(x.elM2, 1)}</td><td className="n">{fmt(x.waterRoom, 2)}</td>
+                  <td className="n">{fmt(x.elRoom, 1)}</td><td className="n">{fmt(x.elM2, 1)}</td><td className="n">{fmt(x.heatM2, 1)}</td><td className="n">{fmt(x.waterRoom, 2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -318,6 +319,7 @@ function Portfolio(p: {
             Electricity {fmt(kwhRoom, 1)} kWh / occupied room<br />
             Heating {fmt(hRoom, 1)} kWh / occupied room<br />
             Electricity {fmt(kwhM2, 1)} kWh / m² ({pLabel})<br />
+            Heating {fmt(heatM2, 1)} kWh / m² ({pLabel})<br />
             Water {fmt(wRoom, 2)} m³ / occupied room
           </div>
         </div>
@@ -408,6 +410,7 @@ function HotelView(p: {
             {fmt(perRoom(inPeriod, "el"), 1)} kWh electricity / occ. room<br />
             {fmt(perRoom(inPeriod, "heat"), 1)} kWh heating / occ. room<br />
             {fmt(perM2(inPeriod, [h], "el"), 1)} kWh electricity / m² ({pLabel})<br />
+            {fmt(perM2(inPeriod, [h], "heat"), 1)} kWh heating / m² ({pLabel})<br />
             {fmt(perRoom(inPeriod, "water"), 2)} m³ water / occ. room
           </div>
         </div>
