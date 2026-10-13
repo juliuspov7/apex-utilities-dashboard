@@ -253,6 +253,7 @@ function Portfolio(p: {
   rows: Row[]; hotels: Hotel[]; allRows: Row[]; hotelIds: Set<string>; pFrom: string; pTo: string; months: string[];
   trendUtil: Utility; setTrendUtil: (u: Utility) => void; open: (id: string) => void;
 }) {
+  const pLabel = p.pFrom === p.pTo ? p.pFrom : `${p.pFrom} → ${p.pTo}`;
   const alerts = p.attention.filter((a) => a.l === "alert");
   const kwhRoom = perRoom(p.rows, "el");
   const kwhM2 = perM2(p.rows, p.hotels, "el");
@@ -315,7 +316,7 @@ function Portfolio(p: {
           <div className="meta" style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7 }}>
             Electricity {fmt(kwhRoom, 1)} kWh / occupied room<br />
             Heating {fmt(hRoom, 1)} kWh / occupied room<br />
-            Electricity {fmt(kwhM2, 1)} kWh / m² (whole period)<br />
+            Electricity {fmt(kwhM2, 1)} kWh / m² ({pLabel})<br />
             Water {fmt(wRoom, 2)} m³ / occupied room
           </div>
         </div>
@@ -362,6 +363,7 @@ function HotelView(p: {
   trendUtil: Utility; setTrendUtil: (u: Utility) => void; months: string[]; nowPrice: Dataset["meta"]["nowPrice"];
 }) {
   const h = p.hotel;
+  const pLabel = p.pFrom === p.pTo ? p.pFrom : `${p.pFrom} → ${p.pTo}`;
   const inPeriod = p.rows.filter((r) => r.month >= p.pFrom && r.month <= p.pTo);
   const aggs = Object.fromEntries(UTILS.map((u) => [u.key, aggregate(inPeriod, u.key)])) as Record<Utility, ReturnType<typeof aggregate>>;
   const trendMonths = p.months.filter((m) => m <= p.pTo).slice(-Math.max(18, inPeriod.length));
@@ -404,7 +406,7 @@ function HotelView(p: {
           <div className="meta" style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.7 }}>
             {fmt(perRoom(inPeriod, "el"), 1)} kWh electricity / occ. room<br />
             {fmt(perRoom(inPeriod, "heat"), 1)} kWh heating / occ. room<br />
-            {fmt(perM2(inPeriod, [h], "el"), 1)} kWh electricity / m² (whole period)<br />
+            {fmt(perM2(inPeriod, [h], "el"), 1)} kWh electricity / m² ({pLabel})<br />
             {fmt(perRoom(inPeriod, "water"), 2)} m³ water / occ. room
           </div>
         </div>

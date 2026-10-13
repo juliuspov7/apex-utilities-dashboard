@@ -63,8 +63,11 @@ export async function getPrices(months: string[], needed: boolean, force: boolea
   }
   const cache = await loadCache();
   const nowMs = Date.now();
+  const old = (mp: MonthPrice) => nowMs - Date.parse(mp.fetchedAt) > REFRESH_MS;
+  // refetch when: never fetched; month still running; or a finished month is missing an area
+  // (retried at most every 5 h, or immediately on a manual refresh)
   const stale = (mp?: MonthPrice) =>
-    !mp || (!mp.complete && (force || nowMs - Date.parse(mp.fetchedAt) > REFRESH_MS));
+    !mp || (!mp.complete && (force || old(mp))) || (AREAS.some((a) => mp[a] === undefined) && (force || old(mp)));
 
   const todo = months.filter((m) => stale(cache.months[m]));
   const errors: string[] = [];
