@@ -227,6 +227,7 @@ function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | n
           )}
         </div>
         <div className="sp" />
+        <a className="btn" href="/admin" style={{ textDecoration: "none", background: "transparent", color: "#fff", borderColor: "rgba(255,255,255,.6)" }}>⬆ Upload data</a>
         <button className="btn primary" onClick={onRefresh} disabled={loading}>{loading ? "Refreshing…" : "↻ Refresh now"}</button>
       </div>
     </header>
