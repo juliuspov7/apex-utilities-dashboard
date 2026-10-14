@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { build, parseWorkbook } from "@/lib/model";
-import { CURRENT_FILE, readStored, writeStored } from "@/lib/store";
+import { ConflictError, CURRENT_FILE, readStored, writeStored } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +49,12 @@ export async function POST(req: Request) {
     const txt = `${(badShare * 100).toFixed(0)}% of the hotel-months have values that are excluded from KPIs – please check the file (see Data quality).`;
     warning = warning ? `${warning} ${txt}` : txt;
   }
-  await writeStored(CURRENT_FILE, buf, type);
+  try {
+    // only replace the file we compared against: a parallel upload by someone else is refused, not silently overwritten
+    await writeStored(CURRENT_FILE, buf, type, prev ? prev.etag : null);
+  } catch (e) {
+    if (e instanceof ConflictError) return Response.json({ error: "Someone uploaded a file at the same moment. Nothing was changed by this upload; reload the dashboard and upload again if needed." }, { status: 409 });
+    throw e;
+  }
   return Response.json({ ok: true, name: file.name, bytes: buf.length, rows: newKeys.size, badShare, warning });
 }

@@ -1,4 +1,4 @@
-import { PRICE_CACHE, readStored, writeStored } from "./store";
+import { ConflictError, PRICE_CACHE, readStored, writeStored } from "./store";
 import type { PriceStatus } from "./types";
 
 type Area = "lt" | "lv" | "ee";
@@ -47,14 +47,52 @@ function monthBounds(month: string) {
   return { start, end };
 }
 
+const etags = new WeakMap<Cache, string | null>(); // version of the cache file each Cache object was read from (null = file did not exist)
+
 async function loadCache(): Promise<Cache> {
+  let etag: string | null | undefined;
   try {
     const s = await readStored(PRICE_CACHE);
-    if (s) return JSON.parse(s.buf.toString("utf8")) as Cache;
+    etag = s?.etag ?? null;
+    if (s) {
+      const c = JSON.parse(s.buf.toString("utf8")) as Cache;
+      etags.set(c, etag);
+      return c;
+    }
   } catch {
     /* corrupt cache is treated as empty */
   }
-  return { months: {} };
+  const empty: Cache = { months: {} };
+  if (etag !== undefined) etags.set(empty, etag);
+  return empty;
+}
+
+/** Merge two caches: per month and for "now", the entry fetched most recently wins. */
+function mergeCaches(a: Cache, b: Cache): Cache {
+  const out: Cache = { ...a, months: { ...a.months } };
+  for (const [k, v] of Object.entries(b.months)) {
+    const cur = out.months[k];
+    if (!cur || Date.parse(v.fetchedAt) > Date.parse(cur.fetchedAt)) out.months[k] = v;
+  }
+  if (b.now && (!out.now || Date.parse(b.now.fetchedAt) > Date.parse(out.now.fetchedAt))) out.now = b.now;
+  return out;
+}
+
+/** Conditional write: if another refresh saved first, merge its prices with ours and try again, so neither is lost. */
+async function saveCache(cache: Cache) {
+  let mine = cache;
+  let etag = etags.get(cache); // unknown (read failed) = unconditional write, as before
+  for (let i = 0; i < 3; i++) {
+    try {
+      await writeStored(PRICE_CACHE, JSON.stringify(mine), "application/json", etag);
+      return;
+    } catch (e) {
+      if (!(e instanceof ConflictError)) throw e;
+      const latest = await loadCache();
+      etag = etags.get(latest);
+      mine = mergeCaches(latest, mine);
+    }
+  }
 }
 
 export async function getPrices(months: string[], needed: boolean, force: boolean): Promise<PriceResult> {
@@ -124,7 +162,7 @@ export async function getPrices(months: string[], needed: boolean, force: boolea
 
   if (changed) {
     try {
-      await writeStored(PRICE_CACHE, JSON.stringify(cache), "application/json");
+      await saveCache(cache);
     } catch {
       /* cache write failure must never break the dashboard */
     }

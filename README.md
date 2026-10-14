@@ -113,6 +113,7 @@ The demo uses one shared view password. In a real roll-out I would use Microsoft
 ## Limitations
 
 - Electricity price uses a monthly average, see above. Prices exclude any VAT or taxes that are not in the Tariffs sheet.
+- Parallel uploads: the new file replaces the current one only if nobody changed it in between (version check); otherwise the upload is refused with a message. The price cache uses the same check and merges with a parallel refresh.
 - Alert thresholds (10 % and 20 %) are fixed in the code.
 - The scheduled refresh is approximate: GitHub may delay scheduled runs.
 - Corrections are shown in the dashboard but not written back to the source Excel.
