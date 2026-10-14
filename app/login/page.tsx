@@ -21,7 +21,7 @@ export default function Login() {
   return (
     <main className="login-page">
       <form className="login-card" onSubmit={submit}>
-        <div className="login-wordmark">Apex</div>
+        <div className="login-wordmark">Apex Alliance</div>
         <h1>Utilities dashboard</h1>
         <p>Enter the access password to view hotel utilities, budgets and alerts.</p>
         <input type="password" name="password" placeholder="Password" autoFocus required autoComplete="current-password" aria-label="Password" />

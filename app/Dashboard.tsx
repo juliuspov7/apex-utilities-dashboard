@@ -258,7 +258,7 @@ function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | n
     <header className="top">
       <div className="wrap">
         <div className="hdr-left">
-          <span className="wordmark">Apex</span>
+          <span className="wordmark">Apex Alliance</span>
           <h1>Utilities dashboard</h1>
         </div>
         <div className="chips">

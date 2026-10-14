@@ -42,7 +42,7 @@ export default function Admin() {
   return (
     <main className="login-page">
       <form className="login-card" style={{ maxWidth: 460 }} onSubmit={submit}>
-        <div className="login-wordmark">Apex</div>
+        <div className="login-wordmark">Apex Alliance</div>
         <h1>Update utilities data</h1>
         <p>Upload the monthly Excel file with the same sheets as before. It is checked first – an unreadable file is rejected and the current data stays live. The previous file is archived automatically.</p>
 

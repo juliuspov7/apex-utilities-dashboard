@@ -145,5 +145,5 @@ header.top .chips { flex: 1 1 auto; min-width: 0; }
 }
 
 /* text wordmark instead of a logo */
-.wordmark { font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: var(--accent); line-height: 1; }
+.wordmark { font-size: 22px; white-space: nowrap; font-weight: 800; letter-spacing: -.02em; color: var(--accent); line-height: 1; }
 .login-wordmark { font-size: 32px; font-weight: 800; letter-spacing: -.02em; color: var(--accent); justify-self: start; line-height: 1; }
