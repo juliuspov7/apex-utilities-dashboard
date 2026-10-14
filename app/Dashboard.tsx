@@ -243,6 +243,11 @@ export default function Dashboard() {
   );
 }
 
+async function logout() {
+  await fetch("/api/logout", { method: "POST" }).catch(() => null);
+  window.location.href = "/login";
+}
+
 function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | null; onRefresh: () => void; loading: boolean; now: number; lastLoad: string | null }) {
   const m = data?.meta;
   const np = m?.nowPrice;
@@ -271,6 +276,7 @@ function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | n
         </div>
         <div className="sp" />
         <a className="btn" href="/admin" style={{ textDecoration: "none" }}>Upload data</a>
+        <button className="btn" onClick={logout} title="End this session">Log out</button>
         <button className="btn primary" onClick={onRefresh} disabled={loading}>{loading ? <><Spinner small /> Refreshing…</> : "Refresh now"}</button>
       </div>
     </header>
