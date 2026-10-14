@@ -257,8 +257,10 @@ function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | n
   return (
     <header className="top">
       <div className="wrap">
-        <img src="/apex-logo.svg" alt="Apex Alliance" className="logo" />
-        <h1>Utilities dashboard</h1>
+        <div className="hdr-left">
+          <img src="/apex-logo.svg" alt="Apex Alliance" className="logo" />
+          <h1>Utilities dashboard</h1>
+        </div>
         <div className="chips">
           <span className="chip2" title={lastLoad ? `Last updated ${new Date(lastLoad).toLocaleString("en-GB")}` : ""}>
             <i className={`dot ${lastLoad ? "ok" : "none"}`} />Updated {ago(lastLoad, now)}
@@ -274,10 +276,11 @@ function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | n
             </span>
           )}
         </div>
-        <div className="sp" />
-        <a className="btn" href="/admin" style={{ textDecoration: "none" }}>Upload data</a>
-        <button className="btn" onClick={logout} title="End this session">Log out</button>
-        <button className="btn primary" onClick={onRefresh} disabled={loading}>{loading ? <><Spinner small /> Refreshing…</> : "Refresh now"}</button>
+        <div className="hdr-actions">
+          <a className="btn" href="/admin" style={{ textDecoration: "none" }}>Upload data</a>
+          <button className="btn" onClick={logout} title="End this session">Log out</button>
+          <button className="btn primary" onClick={onRefresh} disabled={loading}>{loading ? <><Spinner small /> Refreshing…</> : "Refresh now"}</button>
+        </div>
       </div>
     </header>
   );
