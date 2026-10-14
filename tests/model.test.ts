@@ -1,7 +1,7 @@
 // Run with: npm test   (Node's built-in test runner, no extra dependencies)
 import test from "node:test";
 import assert from "node:assert/strict";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { build, parseWorkbook, type Parsed } from "../lib/model.ts";
 
 const noPrices = { months: {}, status: "unavailable" as const, message: "", fetchedAt: null, now: null };
@@ -128,9 +128,9 @@ test("spot tariff without a valid price area is reported", () => {
   assert.ok(r.issues.some((i) => i.kind === "bad price area"));
 });
 
-test("invalid workbook is rejected with a clear message", () => {
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ a: 1 }]), "Hotels");
-  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-  assert.throws(() => parseWorkbook(buf), /missing column|is missing/);
+test("invalid workbook is rejected with a clear message", async () => {
+  const wb = new ExcelJS.Workbook();
+  wb.addWorksheet("Hotels").addRows([["a"], [1]]);
+  const buf = Buffer.from(await wb.xlsx.writeBuffer());
+  await assert.rejects(() => parseWorkbook(buf), /missing column|is missing/);
 });

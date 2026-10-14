@@ -46,7 +46,7 @@ Excel file ──► /admin upload ──► private Blob storage
 | `app/api/version/route.ts` | Returns the time of the last upload, so the browser can notice a new file. |
 | `app/api/upload/route.ts` | Receives the Excel file, checks it, archives the old one and stores the new one. The new file replaces the current one only if nobody changed it in between; otherwise the upload is refused (409). |
 | `app/api/cron/refresh/route.ts` | Called by the scheduled job to refresh prices. Protected by `CRON_SECRET`. Returns an error status if prices are missing or sample data is shown. |
-| `lib/model.ts` | **The data rules.** Reads the workbook, finds duplicates, wrong units, missing and impossible values, and calculates electricity cost. |
+| `lib/model.ts` | **The data rules.** Reads the workbook (ExcelJS), finds duplicates, wrong units, missing and impossible values, and calculates electricity cost. |
 | `lib/kpi.ts` | The KPI formulas (actual vs budget, per room, per m²) and the alert levels. |
 | `lib/prices.ts` | Fetches the Elering day-ahead prices, averages them per month and keeps them in storage. Retries missing months and falls back to stored prices. Saves with a version check and merges with a parallel refresh. |
 | `lib/dataset.ts` | Puts it together: loads the file (or the built-in sample), the prices and the model. |

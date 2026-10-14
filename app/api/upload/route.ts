@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   let badShare = 0;
   try {
     // reject files the dashboard could not read; the old file stays live
-    const parsed = parseWorkbook(buf);
+    const parsed = await parseWorkbook(buf);
     const built = build(parsed, { months: {}, status: "unavailable", message: "", fetchedAt: null, now: null });
     if (built.rows.length === 0) throw new Error("no usable rows in Monthly_Actuals");
     const rejected = built.rows.filter((r) => r.bad.length > 0).length;
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   let warning: string | null = null;
   if (prev) {
     try {
-      const old = build(parseWorkbook(prev.buf), { months: {}, status: "unavailable", message: "", fetchedAt: null, now: null });
+      const old = build(await parseWorkbook(prev.buf), { months: {}, status: "unavailable", message: "", fetchedAt: null, now: null });
       const lost = old.rows.filter((r) => !newKeys.has(`${r.hotel}|${r.month}`)).length;
       if (lost > 0) warning = `${lost} hotel-month row(s) that were in the previous file are missing from this one.`;
     } catch { /* previous file unreadable: nothing to compare */ }

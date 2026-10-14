@@ -3,7 +3,7 @@
 // Usage: BASE_URL=https://... DASH_PASSWORD=... UPLOAD_PASSWORD=... node tests/e2e.mjs path/to/original.xlsx
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 const { BASE_URL, DASH_PASSWORD, UPLOAD_PASSWORD } = process.env;
 const original = process.argv[2];
@@ -33,15 +33,24 @@ try {
   const last = before.meta.latestMonth;
 
   // build an update file: one new month for every hotel + a correction of H04's 72.4 kWh value
-  const wb = XLSX.read(origBuf);
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(origBuf);
   const next = (() => { const [y, m] = last.split("-").map(Number); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`; })();
   for (const n of ["Monthly_Actuals", "Monthly_Budget"]) {
-    const a = XLSX.utils.sheet_to_json(wb.Sheets[n]);
-    a.push(...a.filter((r) => r.month === last).map((r) => ({ ...r, month: next })));
-    if (n === "Monthly_Actuals") a.find((r) => r.hotel_id === "H04" && r.month === "2025-11").electricity_kwh = 72400;
-    wb.Sheets[n] = XLSX.utils.json_to_sheet(a);
+    const ws = wb.getWorksheet(n);
+    const col = (name) => { let c = 0; ws.getRow(1).eachCell((cell, i) => { if (cell.value === name) c = i; }); return c; };
+    const [cMonth, cHotel, cEl] = [col("month"), col("hotel_id"), col("electricity_kwh")];
+    const lastRow = ws.rowCount;
+    for (let r = 2; r <= lastRow; r++) {
+      const row = ws.getRow(r);
+      if (row.getCell(cMonth).value === last) {
+        const copy = ws.addRow(row.values.slice(1));
+        copy.getCell(cMonth).value = next;
+      }
+      if (n === "Monthly_Actuals" && row.getCell(cHotel).value === "H04" && row.getCell(cMonth).value === "2025-11") row.getCell(cEl).value = 72400;
+    }
   }
-  const up = await upload(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }), "update.xlsx");
+  const up = await upload(Buffer.from(await wb.xlsx.writeBuffer()), "update.xlsx");
   assert.equal(up.status, 200, "upload update");
   const after = await data();
   assert.equal(after.meta.latestMonth, next, "new month visible");
@@ -51,9 +60,9 @@ try {
   assert.ok(!h04.bad.includes("el"), "correction clears the exclusion");
 
   // a broken file must be rejected and leave the data untouched
-  const bad = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(bad, XLSX.utils.json_to_sheet([{ x: 1 }]), "Hotels");
-  const rej = await upload(XLSX.write(bad, { type: "buffer", bookType: "xlsx" }), "broken.xlsx");
+  const bad = new ExcelJS.Workbook();
+  bad.addWorksheet("Hotels").addRows([["x"], [1]]);
+  const rej = await upload(Buffer.from(await bad.xlsx.writeBuffer()), "broken.xlsx");
   assert.equal(rej.status, 422, "broken file rejected");
   assert.equal((await data()).meta.latestMonth, next, "data kept after rejection");
 

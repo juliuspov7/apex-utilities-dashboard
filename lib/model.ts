@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { Field, Hotel, Issue, Row } from "./types";
 import type { PriceResult } from "./prices";
 
@@ -52,12 +52,46 @@ export function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function parseWorkbook(buf: Buffer): Parsed {
-  const wb = XLSX.read(buf, { type: "buffer", cellDates: true });
+/** One cell as a plain value: number, string, Date or null (formulas give their stored result). */
+function cellValue(v: ExcelJS.CellValue): unknown {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== "object" || v instanceof Date) return v;
+  if ("result" in v) return cellValue(v.result as ExcelJS.CellValue);
+  if ("richText" in v) return v.richText.map((t) => t.text).join("");
+  if ("text" in v) return v.text;
+  return null; // error values such as #N/A
+}
+
+/** First row = headers, following rows = records (same shape as before); empty cells are null. */
+function sheetRows(ws: ExcelJS.Worksheet): Raw[] {
+  const headers: string[] = [];
+  ws.getRow(1).eachCell({ includeEmpty: false }, (c, i) => {
+    const h = cellValue(c.value);
+    if (h !== null && String(h) !== "") headers[i] = String(h);
+  });
+  const rows: Raw[] = [];
+  for (let r = 2; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    const rec: Raw = {};
+    let any = false;
+    headers.forEach((h, i) => {
+      if (!h) return;
+      const v = cellValue(row.getCell(i).value);
+      rec[h] = v;
+      if (v !== null && v !== "") any = true;
+    });
+    if (any) rows.push(rec);
+  }
+  return rows;
+}
+
+export async function parseWorkbook(buf: Buffer): Promise<Parsed> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buf as unknown as ArrayBuffer);
   const sheet = (name: string): Raw[] => {
-    const ws = wb.Sheets[name];
+    const ws = wb.getWorksheet(name);
     if (!ws) throw new Error(`Sheet "${name}" is missing`);
-    const rows = XLSX.utils.sheet_to_json<Raw>(ws, { defval: null });
+    const rows = sheetRows(ws);
     const cols = new Set(Object.keys(rows[0] ?? {}));
     const miss = REQUIRED[name].filter((c) => !cols.has(c));
     if (miss.length) throw new Error(`Sheet "${name}" is missing column(s): ${miss.join(", ")}`);

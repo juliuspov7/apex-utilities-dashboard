@@ -32,13 +32,13 @@ export async function loadDataset(force = false): Promise<Dataset> {
   }
   try {
     if (!stored) throw new Error(sourceError ?? "No data file uploaded yet – showing built-in sample data");
-    parsed = parseWorkbook(stored.buf);
+    parsed = await parseWorkbook(stored.buf);
     sourceUpdatedAt = stored.updatedAt.toISOString();
     sourceError = null;
   } catch (e) {
     sourceError = stored ? `Uploaded file could not be read: ${(e as Error).message} – showing built-in sample data` : (e as Error).message;
     source = "built-in sample";
-    parsed = parseWorkbook(await readSeed());
+    parsed = await parseWorkbook(await readSeed());
   }
 
   const months = [...new Set(parsed.actuals.map((a) => normMonth(a.month)).filter((m): m is string => !!m))].sort();
