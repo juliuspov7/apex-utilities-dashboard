@@ -10,7 +10,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <footer className="legal">
+          Recruitment assignment prototype, independently developed for Apex Alliance Hotel Management. Not an official company system. Demo data only.
+        </footer>
+      </body>
     </html>
   );
 }

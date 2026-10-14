@@ -1,5 +1,7 @@
 # Apex utilities dashboard (Task 2)
 
+> Recruitment assignment prototype, independently developed for Apex Alliance Hotel Management. Not an official company system. Demo data only.
+
 A web dashboard that compares the monthly utility data of the Apex hotels with their budget and shows which hotel and which utility needs attention. It also calculates electricity cost, using the live day-ahead price for hotels on a spot contract.
 
 - **Live:** https://apex-utilities-mu.vercel.app (view password is sent separately)
