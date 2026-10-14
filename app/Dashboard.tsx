@@ -258,7 +258,7 @@ function Header({ data, onRefresh, loading, now, lastLoad }: { data: Dataset | n
     <header className="top">
       <div className="wrap">
         <div className="hdr-left">
-          <img src="/apex-logo.svg" alt="Apex Alliance" className="logo" />
+          <span className="wordmark">Apex</span>
           <h1>Utilities dashboard</h1>
         </div>
         <div className="chips">

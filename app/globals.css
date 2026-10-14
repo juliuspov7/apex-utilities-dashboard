@@ -143,3 +143,7 @@ header.top .chips { flex: 1 1 auto; min-width: 0; }
   header.top .chips { order: 3; flex: 1 1 100%; }
   .hdr-actions { margin-left: auto; }
 }
+
+/* text wordmark instead of a logo */
+.wordmark { font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: var(--accent); line-height: 1; }
+.login-wordmark { font-size: 32px; font-weight: 800; letter-spacing: -.02em; color: var(--accent); justify-self: start; line-height: 1; }
