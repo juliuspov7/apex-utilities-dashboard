@@ -93,6 +93,7 @@ async function saveCache(cache: Cache) {
       mine = mergeCaches(latest, mine);
     }
   }
+  console.warn("price cache not saved: repeated write conflicts (the next refresh will retry)");
 }
 
 export async function getPrices(months: string[], needed: boolean, force: boolean): Promise<PriceResult> {
