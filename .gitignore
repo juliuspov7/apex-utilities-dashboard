@@ -44,7 +44,7 @@ next-env.d.ts
 
 .vercel
 
-# assignment data (kept out of Git; still deployed because .vercelignore does not exclude it)
+# assignment data (kept out of Git)
 /data/seed.xlsx
 
 # modified copies of the assignment data (kept out of Git)
