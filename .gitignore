@@ -46,3 +46,6 @@ next-env.d.ts
 
 # assignment data (kept out of Git; still deployed because .vercelignore does not exclude it)
 /data/seed.xlsx
+
+# modified copies of the assignment data (kept out of Git)
+/tests/Apex_TEST_*.xlsx

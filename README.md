@@ -55,7 +55,7 @@ Excel file ──► /admin upload ──► private Blob storage
 | `data/seed.xlsx` | The original assignment data (Appendix B). Not in Git (listed in `.gitignore`); place the file here, the deployed app includes it. Shown only if no file has been uploaded or the uploaded file cannot be read. |
 | `tests/model.test.ts` | Unit tests of the data rules and tariffs. |
 | `tests/e2e.mjs` | End-to-end check against a running site: upload, new month visible, correction applied, broken file and wrong password refused. |
-| `tests/Apex_TEST_01…03.xlsx` | Three workbooks for trying the upload by hand: a new month with a correction, a file with data-quality problems, and a file with an invalid structure. |
+| `tests/Apex_TEST_01…03.xlsx` | Not in Git (listed in `.gitignore`). Three workbooks, made from the assignment data, for trying the upload by hand: a new month with a correction, a file with data-quality problems, and a file with an invalid structure. |
 | `.github/workflows/refresh.yml` | Calls the refresh endpoint about every 5 hours. |
 | `.github/workflows/test.yml` | Runs the type check and unit tests on every push. |
 
