@@ -43,3 +43,6 @@ next-env.d.ts
 .env*.local
 
 .vercel
+
+# assignment data (kept out of Git; still deployed because .vercelignore does not exclude it)
+/data/seed.xlsx
